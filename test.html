@@ -1,0 +1,823 @@
+const isl2toolboxPresent = {}
+BJB_CS1_HELPER.pageEvents.onNewLiveChatTranscriptTab(async (stuff) => {
+    console.log("l2toolbox in chat is presented");
+    console.log(stuff);
+    const transcriptObj = await BJB_CS1_HELPER.BjbLiveChatTranscriptHelper.liveChatTranscriptObject();
+    const name = transcriptObj.Name;
+    if (!isl2toolboxPresent[name]){
+        BJB_CS1_HELPER.waitForSelector(
+            "div.windowViewMode-maximized.active.lafPageHost div.flexipagePage div.row.row-main div.column.region-sidebar-right",
+            (elements) => {
+                const toolboxElm = document.createElement("bjb-l2-toolbox");
+                toolboxElm.chatObj = transcriptObj;
+                const column = document.querySelector("div.windowViewMode-maximized.active.lafPageHost div.flexipagePage div.row.row-main div.column.region-sidebar-right");
+                console.log("I AM HEREEEE")
+                column.insertBefore(toolboxElm, column.firstChild.nextSibling);
+                isl2toolboxPresent[name] = true;
+            },
+            document
+        );
+    }
+})
+
+@customElement("bjb-l2-toolbox")
+export class BjbL2Toolbox extends BjbElement {
+  @internalProperty({ type: String }) name = "L2 Toolbox";
+  @internalProperty({ type: Object }) data = "haven't loaded yet";
+
+  @internalProperty({ type: Object }) _currentStatus = '';
+  @internalProperty({ type: Object }) _prodFamilyStatus = '';
+  @internalProperty({ type: Object }) _thirdPartyStatus = '';
+  @internalProperty({ type: Object }) classification_disabled = false;
+  @internalProperty({ type: Object }) _classificationOptions = [];
+  @internalProperty({ type: Object }) _classificationSelected = [];
+  @internalProperty({ type: Object }) _existingClassifications = [];
+  @internalProperty({ type: Object }) _existingProductFamily= [];
+  @internalProperty({ type: Object }) _existingThirdParty= [];
+  _ClassificationTree = [];
+  _ClassificationDictionary = {};
+
+
+  constructor() {
+    super();
+    this.module_name = "bjb-l2-toolbox";
+}
+
+connectedCallback() {
+    super.connectedCallback();
+    this.onLoad();
+}
+
+
+
+
+
+
+  GLOCC_Render_Options(AvailableOptions){
+    console.log('GLOCC_Render_Options call', AvailableOptions)
+    this._classificationOptions = []
+    console.log(AvailableOptions.length)
+    AvailableOptions.forEach((t) => {
+        this._classificationOptions.push(t)
+    });
+    this.requestUpdate()
+  }
+
+ glo_complexity = [
+              {
+                  name: 'Educated Customer',
+                  cls: 'slds-button_neutral',
+                  id: 'scm_1',
+                  submit: true
+              },
+              {
+                  id: 'scm_2',
+                  name: 'Escalated to L2',
+                  cls: 'slds-button_neutral',
+                  submit: true
+              },
+              {
+                  id: 'scm_3',
+                  name: 'Escalated to BU/PM',
+                  cls: 'slds-button_neutral',
+                  submit: true
+              },
+                            {
+                  name: 'Perform Action - On Behalf',
+                  cls: 'slds-button_neutral',
+                  id: 'scm_4',
+                  submit: true
+              },
+              {
+                  id: 'scm_5',
+                  name: 'Perform Action - Self-Serve Failed/Not Available',
+                  cls: 'slds-button_neutral',
+                  submit: true
+              },
+              {
+                  id: 'scm_6',
+                  name: 'Redirect to Another Cisco Team',
+                  cls: 'slds-button_neutral',
+                  submit: true
+              },
+              {
+                  id: 'scm_7',
+                  name: 'Denied Support',
+                  cls: 'slds-button_neutral',
+                  submit: true
+              },
+              {
+                  id: 'scm_8',
+                  name: 'No Action',
+                  cls: 'slds-button_neutral',
+                  submit: true
+              },
+ ]
+
+
+
+
+ complexity = [
+              {
+                  name: 'Comp1',
+                  cls: 'slds-button_neutral',
+                  id: 'complexity_1',
+                  submit: true
+              },
+              {
+                  id: 'complexity_2',
+                  name: 'Comp2',
+                  cls: 'slds-button_neutral',
+                  submit: true
+              },{
+                  id: 'complexity_3',
+                  name: 'Comp3',
+                  cls: 'slds-button_neutral',
+                  submit: true
+              }
+ ]
+
+
+
+  buildIdToTextMap(chi) {
+    this._ClassificationDictionary[chi.id] = chi.name;
+    if (chi.children) chi.children.forEach(c => this.buildIdToTextMap(c));
+  }
+
+//  ______     ___       __       __       __  .__   __.   _______    .___  ___.      ___       __  .__   __.      ______   ______    _______   _______
+// /      |   /   \     |  |     |  |     |  | |  \ |  |  /  _____|   |   \/   |     /   \     |  | |  \ |  |     /      | /  __  \  |       \ |   ____|
+//|  ,----'  /  ^  \    |  |     |  |     |  | |   \|  | |  |  __     |  \  /  |    /  ^  \    |  | |   \|  |    |  ,----'|  |  |  | |  .--.  ||  |__
+//|  |      /  /_\  \   |  |     |  |     |  | |  . `  | |  | |_ |    |  |\/|  |   /  /_\  \   |  | |  . `  |    |  |     |  |  |  | |  |  |  ||   __|
+//|  `----./  _____  \  |  `----.|  `----.|  | |  |\   | |  |__| |    |  |  |  |  /  _____  \  |  | |  |\   |    |  `----.|  `--'  | |  '--'  ||  |____
+// \______/__/     \__\ |_______||_______||__| |__| \__|  \______|    |__|  |__| /__/     \__\ |__| |__| \__|     \______| \______/  |_______/ |_______|
+
+async onLoad() {
+    const queryResult = await BJB_CS1_HELPER.BjbLiveChatTranscriptHelper.liveChatTranscriptObject();
+    console.log('self.queryResult', queryResult)
+    this.data = queryResult;
+    this.getClassificationTree(true)
+}
+
+async defineWorkgroup(){
+    const ccoDetails = BJB_CS1_HELPER.whoAmIDetailed();
+    const myCCOid = BJB_CS1_HELPER.whoAmI(false)
+    const ccoWorkgroup = ccoDetails.workgroup
+    console.log(myCCOid)
+    if (myCCOid == 'vkoleshaa' || ccoWorkgroup == 'SWLIC-L2Offshore' || ccoWorkgroup == 'SWLIC-ASKLICBOT' || ccoWorkgroup == 'SWLIC-L2OnSite')
+    {this.workgroup = "L2"}
+    if ((ccoWorkgroup.includes('LICENSING')) || (myCCOid == 'vkolesha')) { this.workgroup = "GLO"}
+    else {console.log("NOT FROM OUR WG")}
+}
+
+
+  async getClassificationTree(retry_allowed) {
+    try {
+        console.log("getting classification tree")
+        this._currentStatus = 'loading...'
+        let workgroup = await this.defineWorkgroup()
+        console.log("this is the workgroup",this.workgroup)
+        let scm;
+        if (workgroup = "L2")
+        {
+            scm = await fetch("https://scripts.cisco.com/app_dev/GLO_SCM_Classifier/scm_tree.json",{credentials:"include"})
+        }
+        if (workgroup = "GLO"){ scm = await fetch("https://scripts.cisco.com/app_dev/l2_reporting_toolbox/glo_chat_tree.json",{credentials:"include"})}
+        const response = await scm.json()
+        if (response.children) {
+            this._currentStatus = ''
+            this._ClassificationTree = response.children
+            await this.loadExistingClassification(true)
+            if (workgroup = "L2")
+            {
+                await this.loadExistingProductFamily(true)
+                await this.loadExistingThirdParty(true)
+            }
+            this.tree_data = response.children
+            this.complexity.forEach(c => this.buildIdToTextMap(c));
+            this.tree_data.forEach(c => this.buildIdToTextMap(c));
+            console.log('_ClassificationDictionary', this._ClassificationDictionary)
+            this.GLOCC_Render_Options(this.tree_data )
+        }
+        else {
+            this._currentStatus = '<span style="color:red">tree query failed</span>'
+            if (retry_allowed) this.getClassificationTree(false)
+        }
+
+    }
+    catch (err) {
+        this._currentStatus = 'error'
+        console.log(`Call to BDB failed : ${err}`);
+    }
+
+  }
+
+
+//       _______.  ______ .___  ___.      ______  __          ___           _______.     _______. __   _______  __    ______     ___   .___________. __    ______   .__   __.      _______.
+//      /       | /      ||   \/   |     /      ||  |        /   \         /       |    /       ||  | |   ____||  |  /      |   /   \  |           ||  |  /  __  \  |  \ |  |     /       |
+//     |   (----`|  ,----'|  \  /  |    |  ,----'|  |       /  ^  \       |   (----`   |   (----`|  | |  |__   |  | |  ,----'  /  ^  \ `---|  |----`|  | |  |  |  | |   \|  |    |   (----`
+//      \   \    |  |     |  |\/|  |    |  |     |  |      /  /_\  \       \   \        \   \    |  | |   __|  |  | |  |      /  /_\  \    |  |     |  | |  |  |  | |  . `  |     \   \
+//  .----)   |   |  `----.|  |  |  |    |  `----.|  `----./  _____  \  .----)   |   .----)   |   |  | |  |     |  | |  `----./  _____  \   |  |     |  | |  `--'  | |  |\   | .----)   |
+//  |_______/     \______||__|  |__|     \______||_______/__/     \__\ |_______/    |_______/    |__| |__|     |__|  \______/__/     \__\  |__|     |__|  \______/  |__| \__| |_______/
+
+
+
+    async submitClassification() {
+        this._currentStatus = 'saving...'
+        this.GLOCC_Render_Options(this.tree_data)
+        var classification = []
+        this._classificationSelected.some((c) => {
+          classification.push(c.name)
+      })
+        console.log("i am looking for the classifcations",classification)
+    try {
+        this.GLOCC_Render_Options([])
+        const response = await BJB_CS1_HELPER.runBdbTaskAsync(
+            "GLO_SCM_Classifier",
+            {
+                'sr_number': `CHAT-${this.data.Name}`,
+                'action': 'save',
+                'inputs': {
+                    'classification': classification
+                }
+            }
+        )
+        this._existingClassifications = response.prior
+        this._currentStatus = ''
+        this.GLOCC_Render_Options(this.tree_data)
+        this._classificationSelected = []
+
+    }
+    catch (err) {
+        console.log(`Call to BDB failed : ${err}`);
+        this._currentStatus = 'error'
+        this.GLOCC_Render_Options(this.tree_data)
+        this._classificationSelected = []
+    }
+
+  }
+
+  revertToClassifcationChunk(return_to_chunk) {
+      console.log("revertToClassifcationChunk We clicked on this chunk", return_to_chunk)
+        if (!return_to_chunk) {  // back to start
+            this._classificationSelected = []
+            this.GLOCC_Render_Options(this.tree_data)
+            return
+        }
+      var new_selection = []
+      var done_loop = false
+      this._classificationSelected.some((c) => {
+          if (done_loop) return;
+          if (c.id == return_to_chunk.id) done_loop = true
+          else new_selection.push(c)
+      })
+      console.log("revertToClassifcationChunk new_selection", new_selection)
+      this._classificationSelected = new_selection
+      this.addClassifcationChunk(return_to_chunk)
+  }
+
+  addClassifcationChunk(chunk) {
+      console.log("addClassifcationChunk chunk:", chunk)
+      this._classificationSelected.push(chunk);
+      if (chunk.submit) {
+          console.log("we clicked SUBMIT")
+          console.log("please give me save tree",this._classificationSelected)
+          this.submitClassification()
+          return;
+      }
+      if (chunk.children){
+        console.log("Children  chunk:", chunk.children)
+        this.GLOCC_Render_Options(chunk.children)
+      }
+      else {
+          this.GLOCC_Render_Options(this.complexity)
+      }
+  }
+
+
+  async deleteExistingClassification(classification) {
+      var prom = confirm('Delete this classification?')
+      if (!prom) return
+      this._currentStatus = 'deleting...'
+        const response = await BJB_CS1_HELPER.runBdbTaskAsync(
+            "GLO_SCM_Classifier",
+            {
+                'sr_number': `CHAT-${this.data.Name}`,
+                'action': 'delete',
+                'inputs': {
+                    '_id': classification._id
+                }
+            }
+        )
+        this._currentStatus = ''
+        this._existingClassifications = response.prior
+        this.GLOCC_Render_Options(this.tree_data)
+        // REVISIT THIS
+  }
+
+
+    async loadExistingClassification() {
+      this._currentStatus = 'loading priors...'
+      //console.log("loading some shady stuff")
+        const response = await BJB_CS1_HELPER.runBdbTaskAsync(
+            "GLO_SCM_Classifier",
+            {
+                'sr_number': `CHAT-${this.data.Name}`,
+                'action': 'load',
+                'inputs': {}
+            }
+        )
+
+        this._existingClassifications = response.prior //going into the prior dictionary
+        this.GLOCC_Render_Options(this._existingClassifications)
+        this._currentStatus = ''
+
+  }
+
+
+
+//.______   .______        ______    _______   __    __    ______ .___________.    _______    ___      .___  ___.  __   __      ____    ____
+//|   _  \  |   _  \      /  __  \  |       \ |  |  |  |  /      ||           |   |   ____|  /   \     |   \/   | |  | |  |     \   \  /   /
+//|  |_)  | |  |_)  |    |  |  |  | |  .--.  ||  |  |  | |  ,----'`---|  |----`   |  |__    /  ^  \    |  \  /  | |  | |  |      \   \/   /
+//|   ___/  |      /     |  |  |  | |  |  |  ||  |  |  | |  |         |  |        |   __|  /  /_\  \   |  |\/|  | |  | |  |       \_    _/
+//|  |      |  |\  \----.|  `--'  | |  '--'  ||  `--'  | |  `----.    |  |        |  |    /  _____  \  |  |  |  | |  | |  `----.    |  |
+//| _|      | _| `._____| \______/  |_______/  \______/   \______|    |__|        |__|   /__/     \__\ |__|  |__| |__| |_______|    |__|
+
+
+
+async productFamilyBar() {
+    try {
+        const _prodFamilyValue = querySelectorDeep('select[id="productSelect"]').value;
+        if (_prodFamilyValue !== "") {
+            await this.submitProductFamily(true);
+        } else {
+            console.log("Empty value");
+        }
+    } catch (error) {
+        console.error("Error in productFamilyBar:", error);
+        this._prodFamilyStatus = 'Error: Unable to process product family bar';
+    }
+}
+
+async deleteProductFamily(existing_family) {
+    try {
+        var prom = confirm('Delete this product family?');
+        if (!prom) return;
+        this._prodFamilyStatus = 'Deleting...';
+        const response = await BJB_CS1_HELPER.runBdbTaskAsync(
+            "l2_set_family",
+            {
+                'sr_number': `CHAT-${this.data.Name}`,
+                'action': 'delete',
+                'inputs': {
+                    'id_to_delete': existing_family._id
+                }
+            }
+        );
+        this._prodFamilyStatus = 'Deleted...';
+        await this.loadExistingProductFamily();
+    } catch (error) {
+        console.error("Error in deleteProductFamily:", error);
+        this._prodFamilyStatus = 'Error: Unable to delete product family';
+    }
+}
+
+async loadExistingProductFamily() {
+    try {
+        this._prodFamilyStatus = 'Loading...';
+        const response = await BJB_CS1_HELPER.runBdbTaskAsync(
+            "l2_set_family",
+            {
+                'sr_number': `CHAT-${this.data.Name}`,
+                'action': 'query',
+                'inputs': {}
+            }
+        );
+        if (response.priors) {
+            this._existingProductFamily = response.priors;
+        }
+        this._prodFamilyStatus = '';
+    } catch (error) {
+        console.error("Error in loadExistingProductFamily:", error);
+        this._prodFamilyStatus = 'Error: Unable to load existing product family';
+    }
+}
+
+async submitProductFamily() {
+    try {
+        const _prodFamilyValue = querySelectorDeep('select[id="productSelect"]').value;
+        this._prodFamilyStatus = 'Submitting...';
+        const submit = await BJB_CS1_HELPER.runBdbTaskAsync(
+            "l2_set_family",
+            {
+                'sr_number': `CHAT-${this.data.Name}`,
+                'action': 'set',
+                'inputs': { "name": _prodFamilyValue }
+            }
+        );
+        this._prodFamilyStatus = 'Submitted...';
+        await this.loadExistingProductFamily();
+    } catch (error) {
+        console.error("Error in submitProductFamily:", error);
+        this._prodFamilyStatus = 'Error: Unable to submit product family';
+    }
+}
+
+
+//.___________. __    __   __  .______       _______     .______      ___      .______     .___________.____    ____
+//|           ||  |  |  | |  | |   _  \     |       \    |   _  \    /   \     |   _  \    |           |\   \  /   /
+//`---|  |----`|  |__|  | |  | |  |_)  |    |  .--.  |   |  |_)  |  /  ^  \    |  |_)  |   `---|  |----` \   \/   /
+//    |  |     |   __   | |  | |      /     |  |  |  |   |   ___/  /  /_\  \   |      /        |  |       \_    _/
+//    |  |     |  |  |  | |  | |  |\  \----.|  '--'  |   |  |     /  _____  \  |  |\  \----.   |  |         |  |
+//    |__|     |__|  |__| |__| | _| `._____||_______/    | _|    /__/     \__\ | _| `._____|   |__|         |__|
+
+
+
+
+async thirdPartyBar() {
+    const thirdPartySelection = querySelectorDeep('select[id="thirdPartySelect"]').value;
+    const thirdPartyInput = querySelectorDeep('input[id="thirdPartyInput"]').value;
+
+    if (thirdPartySelection !== "") {
+        if (thirdPartyInput.length >= 3) {
+            await this.submitThirdParty();
+        } else {
+            var prom = confirm('Mukund Doesn\'t believe that this could be less than 4 characters');
+            if (!prom) return;
+        }
+    }
+}
+
+async loadExistingThirdParty() {
+    try {
+        this._thirdPartyStatus = 'loading...';
+        const response = await BJB_CS1_HELPER.runBdbTaskAsync(
+            "third_party_team",
+            {
+                'sr_number': `CHAT-${this.data.Name}`,
+                'action': 'query',
+                'inputs': {}
+            }
+        );
+        if (response.priors) {
+            this.existingThirdParty = response.priors;
+        }
+        this._thirdPartyStatus = '';
+    } catch (error) {
+        console.error("Error loading existing third party:", error);
+        this._thirdPartyStatus = 'Error loading';
+    }
+}
+
+async submitThirdParty() {
+    try {
+        const thirdPartySelection = querySelectorDeep('select[id="thirdPartySelect"]').value;
+        const thirdPartyInput = querySelectorDeep('input[id="thirdPartyInput"]').value;
+        this._thirdPartyStatus = 'submitting...';
+        const submit = await BJB_CS1_HELPER.runBdbTaskAsync(
+            "third_party_team",
+            {
+                'sr_number': `CHAT-${this.data.Name}`,
+                'action': 'set',
+                'inputs': {
+                    "name": thirdPartySelection,
+                    "value": thirdPartyInput
+                }
+            }
+        );
+        this._thirdPartyStatus = 'Submitted';
+        await this.loadExistingThirdParty();
+    } catch (error) {
+        console.error("Error submitting third party:", error);
+        this._thirdPartyStatus = 'Error submitting';
+    }
+}
+
+async deleteThirdParty(existing_tp) {
+    try {
+        var prom = confirm('Delete this third party?');
+        if (!prom) return;
+        this._thirdPartyStatus = 'Deleting...';
+        const response = await BJB_CS1_HELPER.runBdbTaskAsync(
+            "third_party_team",
+            {
+                'sr_number': `CHAT-${this.data.Name}`,
+                'action': 'delete',
+                'inputs': {
+                    'id_to_delete': existing_tp._id
+                }
+            }
+        );
+        await this.loadExistingThirdParty();
+    } catch (error) {
+        console.error("Error deleting third party:", error);
+        this._thirdPartyStatus = 'Error deleting';
+    }
+}
+
+
+
+//    .______       _______ .__   __.  _______   _______ .______       __  .__   __.   _______
+//    |   _  \     |   ____||  \ |  | |       \ |   ____||   _  \     |  | |  \ |  |  /  _____|
+//    |  |_)  |    |  |__   |   \|  | |  .--.  ||  |__   |  |_)  |    |  | |   \|  | |  |  __
+//    |      /     |   __|  |  . `  | |  |  |  ||   __|  |      /     |  | |  . `  | |  | |_ |
+//    |  |\  \----.|  |____ |  |\   | |  '--'  ||  |____ |  |\  \----.|  | |  |\   | |  |__| |
+//    | _| `._____||_______||__| \__| |_______/ |_______|| _| `._____||__| |__| \__|  \______|
+
+
+
+
+  render() {
+      let workgroup = await this.defineWorkgroup()
+      if (workgroup = "L2")
+        //if (this.data.SkillName__c != 'ASK_LIC_EXT') return html``
+        {return html`
+            <style>
+    .generic_is_button {
+            margin:3px;
+            cursor: pointer;
+            box-shadow: black 2px 2px 5px;
+        }
+
+        .generic_class_select {
+            background: #b9fab7;
+            border: 1px solid #a58600;
+            border-radius:3px;
+            padding: 0px 3px;
+
+            display: inline-block
+        }
+
+        .generic_class_select:hover {
+            color:white;
+            background-color:gray;
+            border: 1px solid #333;
+        }
+    </style>
+            <article class="slds-card slds-m-bottom--medium">
+                <div class="slds-card__header slds-grid">
+                    <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                        <div class="slds-media__figure">
+                            <span class="slds-icon_container slds-icon-standard-skill" title="GLO Toolbox">
+                            <svg class="slds-icon slds-icon_small" aria-hidden="true">
+                                <use xlink:href="/_slds/icons/utility-sprite/svg/symbols.svg#skill"></use>
+                            </svg>
+                            <span class="slds-assistive-text">L2 Toolbox for ${this.chatObj}</span>
+                            </span>
+                        </div>
+                        <div class="slds-media__body"><span style="float:right; opacity:.5; font-size:small">${this._currentStatus}</span>
+                            <h2 class="slds-card__header-title">
+                                <span>Ask Lic & L2 Toolbox: Chat# ${this.data.Name}</span>
+                            </h2>
+                        </div>
+                    </header>
+                </div>
+                <div class="slds-card__body slds-card__body_inner slds-border_top" style = "border: 2px outset #ffd902; padding-bottom:10px;">
+                    🟡 SCM Classifications <a href="https://scripts.cisco.com/app/GLO_SCM_Classifier/index.html" target="_blank">(help?)</a><br>
+                    <b>Existing:</b>
+                    ${this._existingClassifications.length == 0 ? html`<i>None</i>` : html``}
+                    ${this._existingClassifications.map((existing_class) => {
+                        return html`<nav role="navigation" aria-label="Breadcrumbs" style="background: #fffed8; border:1px solid gray;padding: 2px;border-radius: 5px;">
+                                        <span style="font-family:monospace; float:right; color: red; cursor:pointer" @click=${() => this.deleteExistingClassification(existing_class)}>[x]</span>
+                                        <ol class="slds-breadcrumb slds-list_horizontal slds-wrap">
+                                            ${existing_class.human_classification.map((cl_bit) =>{
+                                                return html`<li class="slds-breadcrumb__item">
+                                                                <a style="${cl_bit == 'complexity' ? `color:red;font-weight:bold` : ``}"> ${cl_bit}  </a>
+                                                            </li>`
+                                            })
+                                        }</ol>
+
+                                </nav>`
+                            })}
+                    <br>
+                    <nav role="navigation" aria-label="Breadcrumbs">
+                        <ol class="slds-breadcrumb slds-list_horizontal slds-wrap">
+                        <b style="margin-right:10px;">Add New:</b>
+                        ${this._classificationSelected.length != 0 ? html`<li class="slds-breadcrumb__item">
+                            <a href="#" @click=${() => this.revertToClassifcationChunk()}>New</a>
+                        </li>` : html``}
+
+                        ${this._classificationSelected.map((classopt) => {
+                                ///(console.log("see this",this._classificationSelected.map((classopt))))
+                                return html`
+                                    <li class="slds-breadcrumb__item">
+                                        <a href="#" style="${classopt.id == 'complexity' ? `color:red;font-weight:bold` : ``}" id ="${classopt.id}" @click=${() => this.revertToClassifcationChunk(classopt)}>${classopt.name}</a>
+                                    </li>
+                                `
+                            })}
+                        </ol>
+                    </nav>
+                    <div>
+                            ${this._classificationOptions.map((classopt) => {
+                                //(console.log("here maybe?"))
+                                return html`
+                                    <a style="margin-left:0px" class="slds-button ${classopt.cls ? classopt.cls : 'slds-button_neutral'}" id ="${classopt.id}" @click=${() => this.addClassifcationChunk(classopt)}>${classopt.name}</a>
+                                `
+                            })}
+                    </div>
+
+                </div>
+                <div class="slds-card__body slds-card__body_inner slds-border_top" id="product_family" style="border: 2px outset #ecd0ff; padding-bottom: 10px; padding-top:5px;">
+                <span> 🟣 Product Family Classifications </span>
+                <span style="float:right; opacity:.5; font-size:small">${this._prodFamilyStatus}</span>
+                <br>
+                <b> Existing:</b>
+                    ${this._existingProductFamily.length == 0 ? html`<i>None</i>` : html``}
+                    ${this._existingProductFamily.map((existing_family) => {
+                    return html`<nav role="navigation" aria-label="Breadcrumbs" style="background: #ecd0ff; border:1px outset gray;padding: 2px;border-radius: 5px; margin-bottom: 3px;">
+                                    <span style="font-family:monospace; float:right; color: red; cursor:pointer" @click=${() => this.deleteProductFamily(existing_family)}>[x]</span>
+                                    <span style="margin-left:5px;">${existing_family.product_family_name}</span>
+
+                                </nav>`
+                        })}
+                        <br>
+                <b> Add New: </b>
+                <div style="overflow-y: auto;">
+                    <select id="productSelect" style="padding: 7px; border: 1px outset #a1a1a1; border-radius: 5px; font-size: 12px; width: 250px; max-width: 100%; cursor: pointer;">
+                        <option value="" disabled selected>Select Product Family</option>
+                        <option value="Adaptive Security Appliance 5500 (ASA) / Anyconnect">Adaptive Security Appliance 5500 (ASA) / Anyconnect</option>
+                        <option value="Aggregation Services Router(ASR)">Aggregation Services Router(ASR)</option>
+                        <option value="Application Centric Infrastructure (ACI)">Application Centric Infrastructure (ACI)</option>
+                        <option value="ASR5K/QVPC">ASR5K/QVPC</option>
+                        <option value="Cat1K/2K/3K/4K/5K Series routers">Cat1K/2K/3K/4K/5K Series routers</option>
+                        <option value="Cat 8K Series">Cat 8K Series</option>
+                        <option value="Cat 9K Series">Cat 9K Series</option>
+                        <option value="Cisco DNA Center (DNAC)">Cisco DNA Center (DNAC)</option>
+                        <option value="Cisco FirePOWER Product (FPR)">Cisco FirePOWER Product (FPR)</option>
+                        <option value="CISCO IP Phones">CISCO IP Phones</option>
+                        <option value="Cisco Meeting Server (Acano)">Cisco Meeting Server (Acano)</option>
+                        <option value="Cisco SX80 Codec">Cisco SX80 Codec</option>
+                        <option value="Cisco Telepresence (Tanberg)">Cisco Telepresence (Tanberg)</option>
+                        <option value="Cisco Unified Attendant Console (CUAC)">Cisco Unified Attendant Console (CUAC)</option>
+                        <option value="Cisco Unified Communications (CUCM)">Cisco Unified Communications (CUCM)</option>
+                        <option value="Cisco Unified Computing System (UCS)">Cisco Unified Computing System (UCS)</option>
+                        <option value="Cisco Unified Contact Center Express (UCCE)">Cisco Unified Contact Center Express (UCCE)</option>
+                        <option value="Cisco Unified Customer Voice Portal (CVP)">Cisco Unified Customer Voice Portal (CVP)</option>
+                        <option value="FLEX">FLEX</option>
+                        <option value="Identity Services Engine (ISE)">Identity Services Engine (ISE)</option>
+                        <option value="Integrated Services Router (ISR)">Integrated Services Router (ISR)</option>
+                        <option value="Ironport">Ironport</option>
+                        <option value="Nexus Switches">Nexus Switches</option>
+                        <option value="Prime infrastructure (PI)">Prime infrastructure (PI)</option>
+                        <option value="Secure Endpoint Account Provisioning">Secure Endpoint Account Provisioning</option>
+                        <option value="Secure Malware Analytics (ThreatGRID)">Secure Malware Analytics (ThreatGRID)</option>
+                        <option value="Stealthwatch/Secure Network Analytics">Stealthwatch/Secure Network Analytics</option>
+                        <option value="Thousand Eyes (TE)">Thousand Eyes (TE)</option>
+                        <option value="Umbrella & Investigate">Umbrella & Investigate</option>
+                        <option value="Unity Connection (CUC)">Unity Connection (CUC)</option>
+                        <option value="VCS & Expressway">VCS & Expressway</option>
+                        <option value="vManage (SDWAN)">vManage (SDWAN)</option>
+                        <option value="VMWare">VMWare</option>
+                        <option value="** Non Product Related issue/Tool Issue **">** Non Product Related issue/Tool Issue **</option>
+                        <option value="** Other Product Related Issue **">** Other Product Related Issue **</option>
+                        <option value="** Unsupported Products **">** Unsupported Products **</option>
+                        <option value="** Multiple Products **">** Multiple Products **</option>
+                    </select>
+                </div>
+                <div style="padding 7px;">
+                    <button id="family_button" style="padding: 7px; border: 2px outset #a1a1a1; border-radius: 5px; font-size: 12px; width: 250px; cursor: pointer; background-color: #ecd0ff; color: #000000;" @click=${() => this.productFamilyBar()}>
+                    Submit
+                    </button>
+                </div>
+                </div>
+
+                <div class="slds-card__body slds-card__body_inner slds-border_top" id = "third_party"; style="border: 2px outset #7eb6ffed; padding-bottom: 10px; padding-top:5px;">
+                <span>🔵 Third Party Inolvement</span>
+                <span style="float:right; opacity:.5; font-size:small">${this._thirdPartyStatus}</span>
+                <br>
+                <b> Existing:</b>
+                    ${this.existingThirdParty.length == 0 ? html`<i>None</i>` : html``}
+                    ${console.log("I hope this workds",this.existingThirdParty)}
+                    ${this.existingThirdParty.map((existing_tp) => {
+                    return html`<nav role="navigation" aria-label="Breadcrumbs" style="background: #7eb6ffed; border:1px outset gray;padding: 2px;border-radius: 5px; margin-bottom: 3px;">
+                                    <span style="font-family:monospace; float:right; color: red; cursor:pointer" @click=${() => this.deleteThirdParty(existing_tp)}>[x]</span>
+                                    <span style="margin-left:5px;">${existing_tp.third_party_name}:${existing_tp.third_party_value}</span>
+
+                                </nav>`
+                        })}
+                        <br>
+                <b> Add New: </b>
+                <div style="overflow-y: auto;">
+                    <select id="thirdPartySelect" style="padding: 7px; border: 1px outset #a1a1a1; border-radius: 5px; font-size: 12px; width: 250px; max-width: 100%; cursor: pointer;">
+                        <option value="" disabled selected>Select Third Party Involvement</option>
+                        <option value="HTLE">HTLE</option>
+                        <option value="BE">BE</option>
+                        <option value="IT">IT</option>
+                        <option value="CS HUB">CS HUB</option>
+                        <option value="OnPrem L3">OnPrem L3</option>
+                        <option value="LEM">LEM</option>
+                        <option value="NPI">NPI</option>
+                        <option value="TAC">TAC</option>
+                        <option value="Trade OPS">Trade OPS</option>
+                        <option value="Web help">Web help</option>
+                        <option value="Others">Others</option>
+                        <option value="N/A">N/A</option>
+                    </select>
+                    <br>
+                    <input id="thirdPartyInput"; style="padding: 7px; border: 1px outset #a1a1a1; border-radius: 5px; font-size: 12px; width: 250px; max-width: 100%;" placeholder="Enter here..." value="">
+                </div>
+                <div style="padding 7px;">
+                    <button id="thirdPartyButton" style="padding: 7px; border: 2px outset #a1a1a1; border-radius: 5px; font-size: 12px; width: 250px; cursor: pointer; background-color: #7eb6ffed; color: #000000;" @click=${() => this.thirdPartyBar()}>
+                    Submit
+                    </button>
+                </div>
+                </div>
+
+
+            </article>`;
+
+            }
+    if (workgroup="GLO")
+            {return html`
+            <style>
+    .generic_is_button {
+            margin:3px;
+            cursor: pointer;
+            box-shadow: black 2px 2px 5px;
+        }
+
+        .generic_class_select {
+            background: #b9fab7;
+            border: 1px solid #a58600;
+            border-radius:3px;
+            padding: 0px 3px;
+
+            display: inline-block
+        }
+
+        .generic_class_select:hover {
+            color:white;
+            background-color:gray;
+            border: 1px solid #333;
+        }
+    </style>
+            <article class="slds-card slds-m-bottom--medium">
+                <div class="slds-card__header slds-grid">
+                    <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                        <div class="slds-media__figure">
+                            <span class="slds-icon_container slds-icon-standard-skill" title="GLO Toolbox">
+                            <svg class="slds-icon slds-icon_small" aria-hidden="true">
+                                <use xlink:href="/_slds/icons/utility-sprite/svg/symbols.svg#skill"></use>
+                            </svg>
+                            <span class="slds-assistive-text">L2 Toolbox for ${this.chatObj}</span>
+                            </span>
+                        </div>
+                        <div class="slds-media__body"><span style="float:right; opacity:.5; font-size:small">${this._currentStatus}</span>
+                            <h2 class="slds-card__header-title">
+                                <span>Ask Lic & L2 Toolbox: Chat# ${this.data.Name}</span>
+                            </h2>
+                        </div>
+                    </header>
+                </div>
+                <div class="slds-card__body slds-card__body_inner slds-border_top" style = "border: 2px outset #ffd902; padding-bottom:10px;">
+                    🟡 SCM Classifications <a href="https://scripts.cisco.com/app/GLO_SCM_Classifier/index.html" target="_blank">(help?)</a><br>
+                    <b>Existing:</b>
+                    ${this._existingClassifications.length == 0 ? html`<i>None</i>` : html``}
+                    ${this._existingClassifications.map((existing_class) => {
+                        return html`<nav role="navigation" aria-label="Breadcrumbs" style="background: #fffed8; border:1px solid gray;padding: 2px;border-radius: 5px;">
+                                        <span style="font-family:monospace; float:right; color: red; cursor:pointer" @click=${() => this.deleteExistingClassification(existing_class)}>[x]</span>
+                                        <ol class="slds-breadcrumb slds-list_horizontal slds-wrap">
+                                            ${existing_class.human_classification.map((cl_bit) =>{
+                                                return html`<li class="slds-breadcrumb__item">
+                                                                <a style="${cl_bit == 'complexity' ? `color:red;font-weight:bold` : ``}"> ${cl_bit}  </a>
+                                                            </li>`
+                                            })
+                                        }</ol>
+
+                                </nav>`
+                            })}
+                    <br>
+                    <nav role="navigation" aria-label="Breadcrumbs">
+                        <ol class="slds-breadcrumb slds-list_horizontal slds-wrap">
+                        <b style="margin-right:10px;">Add New:</b>
+                        ${this._classificationSelected.length != 0 ? html`<li class="slds-breadcrumb__item">
+                            <a href="#" @click=${() => this.revertToClassifcationChunk()}>New</a>
+                        </li>` : html``}
+
+                        ${this._classificationSelected.map((classopt) => {
+                                ///(console.log("see this",this._classificationSelected.map((classopt))))
+                                return html`
+                                    <li class="slds-breadcrumb__item">
+                                        <a href="#" style="${classopt.id == 'complexity' ? `color:red;font-weight:bold` : ``}" id ="${classopt.id}" @click=${() => this.revertToClassifcationChunk(classopt)}>${classopt.name}</a>
+                                    </li>
+                                `
+                            })}
+                        </ol>
+                    </nav>
+                    <div>
+                            ${this._classificationOptions.map((classopt) => {
+                                //(console.log("here maybe?"))
+                                return html`
+                                    <a style="margin-left:0px" class="slds-button ${classopt.cls ? classopt.cls : 'slds-button_neutral'}" id ="${classopt.id}" @click=${() => this.addClassifcationChunk(classopt)}>${classopt.name}</a>
+                                `
+                            })}
+                    </div>
+
+                </div>
+
+
+
+            </article>`;
+
+            }
+    }
+}
