@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Пренасочване...</title>
+  </head>
+  <body>
+    <script>
+      (function () {
+        var path = window.location.pathname + window.location.search + window.location.hash;
+        var parts = window.location.pathname.split("/").filter(Boolean);
+        var base = parts.length > 1 ? "/" + parts[0] + "/" : "/";
+
+        sessionStorage.setItem("format4_redirect_path", path);
+        window.location.replace(window.location.origin + base);
+      })();
+    </script>
+  </body>
+</html>
