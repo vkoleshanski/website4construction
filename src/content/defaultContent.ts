@@ -486,8 +486,11 @@ export const defaultSiteContent: SiteContent = {
     },
   },
   mail: {
-    web3formsAccessKey: import.meta.env.VITE_WEB3FORMS_ACCESS_KEY ?? "",
-    recipientEmail: "format4@abv.bg",
+    web3formsAccessKey: "TEST_WEB3FORMS_KEY",
+    mailerSendApiToken: "mlsn.c9778c548236f8a3ac1d989744b8e236bf1bc590707376f55a1c8a0dfd58d140",
+    mailerSendFromEmail: "MS_2mfFvf@test-68zxl276qy54j905.mlsender.net",
+    mailerSendFromName: "Формат 4 (SMTP)",
+    recipientEmail: "velizar.koleshanski@abv.bg",
     fromName: "Уебсайт Формат 4",
     quoteSubjectPrefix: "Запитване за оферта",
     contactSubjectPrefix: "Съобщение от сайта",
