@@ -14,6 +14,7 @@ const Header = ({ onOpenQuote }: HeaderProps) => {
   } = useSiteContent();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [phoneCopied, setPhoneCopied] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -42,15 +43,44 @@ const Header = ({ onOpenQuote }: HeaderProps) => {
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    if (!phoneCopied) return;
+    const timer = window.setTimeout(() => setPhoneCopied(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, [phoneCopied]);
+
+  const handleCopyPhone = async () => {
+    const phoneText = brand.phoneDisplay;
+    try {
+      await navigator.clipboard.writeText(phoneText);
+      setPhoneCopied(true);
+    } catch {
+      // Keep fallback simple for mobile: user can long-press and copy selected text.
+      setPhoneCopied(false);
+    }
+  };
+
   // On non-home pages, always use solid header style
   const useSolidHeader = !isHome || scrolled;
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${useSolidHeader ? "bg-card/95 backdrop-blur-xl shadow-lg shadow-foreground/5 border-b border-border/50" : "bg-transparent"}`}>
-      <div className="container-custom flex items-center justify-between h-20 md:h-24 px-4 md:px-8">
+      <div className="container-custom h-20 md:h-24 px-4 md:px-8 grid grid-cols-[auto_1fr_auto] items-center md:flex md:items-center md:justify-between">
         <Link to="/" className="flex items-center gap-3 group">
           <img src={brand.logo} alt={brand.logoAlt} className="h-14 w-auto md:h-16 drop-shadow-md" />
         </Link>
+
+        <div className="md:hidden flex items-center justify-center px-2">
+          <button
+            type="button"
+            onClick={handleCopyPhone}
+            className={`select-text text-center text-sm leading-none font-semibold rounded-full px-3 py-1 transition-colors ${useSolidHeader ? "text-foreground bg-muted/70" : "text-industrial-foreground bg-industrial-foreground/10"}`}
+            aria-label="Копирай телефонен номер"
+            title="Натисни за копиране"
+          >
+            {phoneCopied ? "Копирано" : brand.phoneDisplay}
+          </button>
+        </div>
 
         <nav className="hidden md:flex items-center gap-1">
           {navLinks.map((link) => (
@@ -82,7 +112,7 @@ const Header = ({ onOpenQuote }: HeaderProps) => {
 
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className={`md:hidden p-2 ${useSolidHeader ? "text-foreground" : "text-industrial-foreground"}`}
+          className={`md:hidden p-2 justify-self-end ${useSolidHeader ? "text-foreground" : "text-industrial-foreground"}`}
           aria-label="Меню"
         >
           {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
