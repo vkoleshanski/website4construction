@@ -486,7 +486,7 @@ export const defaultSiteContent: SiteContent = {
     },
   },
   mail: {
-    web3formsAccessKey: "TEST_WEB3FORMS_KEY",
+    web3formsAccessKey: "",
     mailerSendApiToken: "mlsn.c9778c548236f8a3ac1d989744b8e236bf1bc590707376f55a1c8a0dfd58d140",
     mailerSendFromEmail: "MS_2mfFvf@test-68zxl276qy54j905.mlsender.net",
     mailerSendFromName: "Формат 4 (SMTP)",
